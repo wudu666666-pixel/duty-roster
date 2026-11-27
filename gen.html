@@ -281,13 +281,12 @@
 const DATA_URL = "https://wudu666666-pixel.github.io/duty-roster/data.json?v=" + Date.now();
 const CLOUD_ORIGIN = "https://wudu666666-pixel.github.io/duty-roster/data.json";
 
-/* ========= 默认密码 hash（原始密码：tiangfu2026） =========
+/* ========= 默认密码 hash（原始密码：smtc2026） =========
    管理员密码保存在这里（SHA256 hash）。
-   要改密码：把新密码的 hash 替换下面数组里的任意一项。
+   要改密码：算出新密码的 SHA256 hash，替换下面数组里的任意一项。
    想让多人都能当管理员，把每个人的密码 hash 都加进数组。 */
 const ADMIN_PASS_HASHES = [
-  // tiangfu2026
-  "f0c8d3f8c1c7a0f40c0b0a6f8c5f3e2c1a9b8d7e6f5c4b3a291807654321fedcba" // 占位，下面运行时会自动算真 hash
+  "2d7d79bc6b0164499bc72b696599247ea6bbf92c739f7575a6eddcc4584bd91d"  // smtc2026
 ];
 
 /* ========= 内嵌默认数据（云端 data.json 不存在时用） ========= */
@@ -347,13 +346,6 @@ async function sha256(str) {
 }
 
 /* ========= 管理员登录 ========= */
-// 默认密码 tiangfu2026 的真实 hash 在运行时计算一次，存入 ADMIN_PASS_HASHES
-(async function initAdminHash() {
-  const realHash = await sha256("tiangfu2026");
-  ADMIN_PASS_HASHES[0] = realHash;
-  lsSet("tianfu_admin_hash", realHash); // 存一下方便识别
-})();
-
 async function adminLogin() {
   const p = document.getElementById("adminPwd").value;
   if (!p) { showToast("请输入密码", true); return; }
@@ -724,10 +716,10 @@ function buildText(date) {
   const pl = findPlantOn(k);
   t += "\n";
   if (pl && pl.name) {
-    t += "厂务部值班：" + pl.name + "\n";
+    t += "厂务应急值班主管：" + pl.name + "\n";
     if (pl.phone) t += "电话：" + pl.phone + "\n";
   } else {
-    t += "厂务部值班：（暂无排班）\n";
+    t += "厂务应急值班主管：（暂无排班）\n";
   }
   return t.trim() + "\n";
 }
