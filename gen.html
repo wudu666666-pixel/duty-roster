@@ -15,6 +15,18 @@
   .wrap { max-width: 760px; margin: 0 auto; }
   .title { font-size: 20px; font-weight: 700; margin-bottom: 16px; color: #1e5bbf; text-align: center; }
 
+  .admin-bar {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 12px 16px; margin-bottom: 14px; display: flex; flex-wrap: wrap;
+    align-items: center; gap: 10px; font-size: 13px;
+  }
+  .admin-bar .status { flex: 1; color: #6b7385; }
+  .admin-bar .status.ok { color: #16a34a; font-weight: 600; }
+  .admin-bar input[type="password"], .admin-bar input[type="text"] {
+    padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+    font-size: 13px; font-family: inherit; width: 140px;
+  }
+
   .tabs {
     display: flex; gap: 0; margin-bottom: 16px;
     background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;
@@ -26,6 +38,7 @@
   }
   .tab.active { color: #1e5bbf; border-bottom-color: #1e5bbf; background: #f8fafc; }
   .tab:hover:not(.active) { color: #1a2238; }
+  .tab.locked { color: #cbd5e1; cursor: not-allowed; }
 
   .panel {
     background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
@@ -38,7 +51,6 @@
     padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px;
     font-size: 14px; font-family: inherit; color: #1a2238; background: #f9fafb;
   }
-  input[type="date"]:focus, select:focus { outline: none; border-color: #1e5bbf; background: #fff; }
 
   button {
     padding: 8px 16px; border: none; border-radius: 8px;
@@ -71,16 +83,10 @@
     display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px;
     padding-bottom: 12px; border-bottom: 1px solid #e2e8f0;
   }
-  .edit-toolbar label { font-size: 13px; color: #6b7385; margin-right: 6px; }
-  .edit-toolbar input[type="number"] {
-    width: 90px; padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 8px;
-    font-size: 14px; font-family: inherit; color: #1a2238; background: #f9fafb;
-  }
 
   .table-scroll {
     max-height: 620px; overflow: auto;
     border: 1px solid #e2e8f0; border-radius: 8px;
-    -webkit-overflow-scrolling: touch;
   }
   table.schedule {
     width: 100%; border-collapse: separate; border-spacing: 0;
@@ -119,9 +125,7 @@
   table.schedule thead th.leader-col { background: #eaf2ff; color: #1e5bbf; }
   table.schedule tr.today-row td { background: #fffbeb; }
   table.schedule tr.today-row td.date-col { background: #fef3c7; }
-  table.schedule tr.today-row input { background: rgba(255,255,255,0.75); }
 
-  /* 厂务部专用：两个日期列更宽 */
   table.plant-schedule { min-width: 700px; }
   table.plant-schedule th, table.plant-schedule td { padding: 6px 8px; }
   table.plant-schedule .date-range-col { width: 28%; min-width: 180px; }
@@ -132,6 +136,13 @@
   table.plant-schedule .date-range-wrap { display: flex; gap: 4px; align-items: center; }
   table.plant-schedule .date-range-wrap input[type="date"] { flex: 1; text-align: center; font-size: 12px; }
   table.plant-schedule .date-range-wrap .sep { font-size: 11px; color: #9ca3af; flex-shrink: 0; }
+
+  .sync-tip {
+    background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px;
+    padding: 12px 14px; font-size: 13px; color: #9a3412; line-height: 1.8;
+    margin-top: 12px;
+  }
+  .sync-tip b { color: #c2410c; }
 
   .toast {
     position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-60px);
@@ -144,18 +155,14 @@
   .toast.error { background: #dc2626; box-shadow: 0 4px 16px rgba(220,38,38,0.3); }
 
   .footer { text-align: center; margin-top: 16px; font-size: 12px; color: #9ca3af; }
+  .footer .cloud { color: #16a34a; }
+  .footer .cloud.off { color: #ef4444; }
 
   @media (max-width: 600px) {
     .panel { padding: 10px; }
-    .table-scroll { max-height: 560px; }
     table.schedule { font-size: 12px; min-width: 640px; }
-    table.schedule th, table.schedule td { padding: 5px 2px; }
     table.schedule .date-col { width: 68px; min-width: 68px; padding-left: 5px; }
-    table.schedule .date-col .d { font-size: 12px; }
-    table.schedule .date-col .w { font-size: 10px; }
     table.schedule td input { font-size: 12.5px; padding: 5px 2px; }
-    table.schedule thead th { font-size: 11.5px; padding: 7px 2px; }
-    table.plant-schedule { min-width: 700px; }
   }
 </style>
 </head>
@@ -163,10 +170,23 @@
 <div class="wrap">
   <div class="title">值班通知生成器 · 福建天甫</div>
 
+  <!-- 管理员栏 -->
+  <div class="admin-bar">
+    <span class="status" id="cloudStatus">☁️ 正在从云端加载数据…</span>
+    <div id="adminLoginArea">
+      <input type="password" id="adminPwd" placeholder="管理员密码" onkeydown="if(event.key==='Enter')adminLogin()">
+      <button class="btn-primary btn-sm" onclick="adminLogin()">管理员登录</button>
+    </div>
+    <div id="adminArea" style="display:none;">
+      <span style="color:#16a34a;font-weight:600;">✓ 管理员已登录</span>
+      <button class="btn-ghost btn-sm" onclick="adminLogout()">退出</button>
+    </div>
+  </div>
+
   <div class="tabs">
     <div class="tab active" id="tab-gen" onclick="switchTab('gen')">① 生成通知文字</div>
-    <div class="tab" id="tab-edit" onclick="switchTab('edit')">② 干部排班</div>
-    <div class="tab" id="tab-plant" onclick="switchTab('plant')">③ 厂务部值班</div>
+    <div class="tab locked" id="tab-edit" onclick="tryGotoEdit()">② 干部排班</div>
+    <div class="tab locked" id="tab-plant" onclick="tryGotoEdit()">③ 厂务部值班</div>
   </div>
 
   <!-- ========= ① 生成通知 ========= -->
@@ -180,7 +200,6 @@
         <button class="btn-ghost btn-sm" onclick="shiftDay(1)">后一天</button>
       </div>
     </div>
-
     <div class="panel" style="padding:0;">
       <div class="preview-head">
         <h3>值班通知文字（可直接复制发群）</h3>
@@ -190,9 +209,8 @@
       </div>
       <textarea id="output" readonly></textarea>
     </div>
-
     <div class="footer">
-      干部排班在「② 编辑排班」维护 · 厂务部排班在「③ 厂务部值班」维护
+      干部排班 / 厂务部值班 由管理员维护 · 数据来源：云端同步
     </div>
   </div>
 
@@ -202,7 +220,7 @@
       <h3>从 Word 排班表导入</h3>
       <div class="edit-toolbar" style="border:none;padding:0;margin:0;">
         <label>年份</label>
-        <input type="number" id="importYear" value="2026" min="2020" max="2099">
+        <input type="number" id="importYear" value="2026" min="2020" max="2099" style="width:90px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;font-family:inherit;">
         <button class="btn-primary btn-sm" onclick="document.getElementById('docxFile').click()">⇧ 选择 Word 文件（.docx）</button>
         <input type="file" id="docxFile" accept=".docx" style="display:none" onchange="importDocx(event)">
         <span style="font-size:12px;color:#9ca3af;">自动读取表格人名和电话，覆盖同日期数据</span>
@@ -213,12 +231,15 @@
     <div class="panel">
       <h3>编辑干部排班表</h3>
       <div class="edit-toolbar">
-        <button class="btn-success btn-sm" onclick="saveSchedule()">💾 保存</button>
+        <button class="btn-success btn-sm" onclick="saveSchedule()">💾 保存（本机）</button>
+        <button class="btn-primary btn-sm" onclick="pushCloud()">☁️ 一键推送到云端</button>
+        <button class="btn-ghost btn-sm" onclick="exportData()">⇩ 导出 JSON（备用）</button>
         <button class="btn-warn btn-sm" onclick="resetSchedule()">↺ 恢复原始</button>
-        <span style="flex:1"></span>
-        <span style="font-size:12px;color:#9ca3af;">黄色 = 今天</span>
       </div>
       <div id="scheduleTable"></div>
+      <div class="sync-tip" id="scheduleTip">
+        <b>推送到云端（首次需设置 token）：</b> 点「☁️ 一键推送到云端」→ 按提示输入 GitHub token（只存本机浏览器）→ 以后一键推送，同事刷新页面即看到最新。
+      </div>
     </div>
   </div>
 
@@ -227,21 +248,15 @@
     <div class="panel">
       <h3>厂务部值班人员（按周排班）</h3>
       <div class="edit-toolbar">
-        <button class="btn-success btn-sm" onclick="savePlant()">💾 保存</button>
+        <button class="btn-success btn-sm" onclick="savePlant()">💾 保存（本机）</button>
+        <button class="btn-primary btn-sm" onclick="pushCloud()">☁️ 一键推送到云端</button>
+        <button class="btn-ghost btn-sm" onclick="exportData()">⇩ 导出 JSON（备用）</button>
         <button class="btn-warn btn-sm" onclick="resetPlant()">↺ 恢复原始</button>
         <button class="btn-primary btn-sm" onclick="addPlantRow()">＋ 新增一周</button>
-        <span style="flex:1"></span>
-        <span style="font-size:12px;color:#9ca3af;">起止日期都能改，改完保存即生效</span>
       </div>
       <div id="plantTable"></div>
-    </div>
-
-    <div class="panel">
-      <h3>厂务部值班 · 说明</h3>
-      <div style="font-size:13.5px;line-height:1.8;color:#4b5563;">
-        1. 起止日期直接点击即可选择或手动输入<br>
-        2. 每行表示一周，通知文字会根据选的日期自动匹配所在周<br>
-        3. 「＋ 新增一周」可以添加新的排班行，🗑 删除该行
+      <div class="sync-tip">
+        <b>推送到云端（首次需设置 token）：</b> 点「☁️ 一键推送到云端」→ 按提示输入 GitHub token（只存本机浏览器）→ 以后一键推送，同事刷新页面即看到最新。
       </div>
     </div>
   </div>
@@ -249,94 +264,139 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- 导出 JSON 弹窗 -->
+<div id="exportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:20px;max-width:640px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:12px;">
+    <h3 style="margin:0;color:#1e5bbf;">更新 GitHub data.json 的内容</h3>
+    <textarea id="exportText" style="min-height:280px;width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:8px;font-family:monospace;font-size:12px;resize:vertical;"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn-ghost" onclick="document.getElementById('exportModal').style.display='none'">关闭</button>
+      <button class="btn-primary" onclick="copyExport()">复制 JSON</button>
+    </div>
+  </div>
+</div>
+
 <script>
-/* ====================== 干部排班数据 ====================== */
-const PHONES = {
-  "黄斌斌": "13605915915", "刘奕丰": "15216863169", "艾合买提艾尔肯": "15900744996",
-  "杜开堂": "18396355116", "华鹏": "13916721908",
-  "张永彪": "14759208938", "罗永春": "15980768367", "郑义达": "13850680730",
-  "范建平": "15067017561", "赖志林": "15750804651", "李文龙": "18505973112",
-  "张富财": "13859560556", "石凌斌": "18959294292", "罗霜": "17623703561",
-  "雷荣增": "13685976301", "傅兵安": "13860288990", "陈春鑫": "13859569805",
-  "赖绍彬": "13507532500", "官叶腾": "18850188454", "王胜": "18250105270",
-  "张林健": "18959005106", "邹林建": "15060372796", "谢宇洋": "18459756672", "卢治": "15889482340"
-};
+/* ========= 云端配置 ========= */
+const DATA_URL = "https://wudu666666-pixel.github.io/duty-roster/data.json?v=" + Date.now();
+const CLOUD_ORIGIN = "https://wudu666666-pixel.github.io/duty-roster/data.json";
 
-const ORIGINAL = {
-  "2026-11-09": { leader: "杜开堂", support: "范建平", factory: "张永彪", kuzhang: "石凌斌" },
-  "2026-11-10": { leader: "刘奕丰", support: "赖志林", factory: "张永彪", kuzhang: "张林健" },
-  "2026-11-11": { leader: "刘奕丰", support: "李文龙", factory: "张永彪", kuzhang: "雷荣增" },
-  "2026-11-12": { leader: "刘奕丰", support: "张富财", factory: "张永彪", kuzhang: "官叶腾" },
-  "2026-11-13": { leader: "杜开堂", support: "石凌斌", factory: "张永彪", kuzhang: "谢宇洋" },
-  "2026-11-14": { leader: "杜开堂", support: "",       factory: "郑义达", kuzhang: "卢治" },
-  "2026-11-15": { leader: "华鹏",   support: "",       factory: "郑义达", kuzhang: "傅兵安" },
-  "2026-11-16": { leader: "杜开堂", support: "张富财", factory: "罗永春", kuzhang: "赖绍彬" },
-  "2026-11-17": { leader: "刘奕丰", support: "赖志林", factory: "罗永春", kuzhang: "王胜" },
-  "2026-11-18": { leader: "刘奕丰", support: "李文龙", factory: "罗永春", kuzhang: "陈春鑫" },
-  "2026-11-19": { leader: "杜开堂", support: "范建平", factory: "罗永春", kuzhang: "邹林建" },
-  "2026-11-20": { leader: "杜开堂", support: "石凌斌", factory: "罗永春", kuzhang: "张林健" },
-  "2026-11-21": { leader: "华鹏",   support: "",       factory: "张永彪", kuzhang: "雷荣增" },
-  "2026-11-22": { leader: "华鹏",   support: "",       factory: "张永彪", kuzhang: "官叶腾" },
-  "2026-11-23": { leader: "",       support: "范建平", factory: "张永彪", kuzhang: "谢宇洋" },
-  "2026-11-24": { leader: "",       support: "赖志林", factory: "张永彪", kuzhang: "卢治" },
-  "2026-11-25": { leader: "",       support: "李文龙", factory: "张永彪", kuzhang: "傅兵安" },
-  "2026-11-26": { leader: "",       support: "张富财", factory: "张永彪", kuzhang: "赖绍彬" },
-  "2026-11-27": { leader: "",       support: "石凌斌", factory: "张永彪", kuzhang: "王胜" },
-  "2026-11-28": { leader: "",       support: "",       factory: "罗永春", kuzhang: "陈春鑫" },
-  "2026-11-29": { leader: "",       support: "",       factory: "罗永春", kuzhang: "邹林建" },
-  "2026-11-30": { leader: "",       support: "范建平", factory: "罗永春", kuzhang: "张林健" }
-};
-
-/* ====================== 厂务部值班数据 ====================== */
-const ORIGINAL_PLANT = [
-  { start: "2026-11-16", end: "2026-11-22", name: "张宇祥", phone: "15260218913" },
-  { start: "2026-11-23", end: "2026-11-29", name: "张晓宇", phone: "15159043860" },
-  { start: "2026-11-30", end: "2026-12-06", name: "朱友兄", phone: "13859959941" }
+/* ========= 默认密码 hash（原始密码：tiangfu2026） =========
+   管理员密码保存在这里（SHA256 hash）。
+   要改密码：把新密码的 hash 替换下面数组里的任意一项。
+   想让多人都能当管理员，把每个人的密码 hash 都加进数组。 */
+const ADMIN_PASS_HASHES = [
+  // tiangfu2026
+  "f0c8d3f8c1c7a0f40c0b0a6f8c5f3e2c1a9b8d7e6f5c4b3a291807654321fedcba" // 占位，下面运行时会自动算真 hash
 ];
 
-/* ====================== 状态 ====================== */
+/* ========= 内嵌默认数据（云端 data.json 不存在时用） ========= */
+const PHONES = {
+  "黄斌斌":"13605915915","刘奕丰":"15216863169","艾合买提艾尔肯":"15900744996",
+  "杜开堂":"18396355116","华鹏":"13916721908","张永彪":"14759208938","罗永春":"15980768367",
+  "郑义达":"13850680730","范建平":"15067017561","赖志林":"15750804651","李文龙":"18505973112",
+  "张富财":"13859560556","石凌斌":"18959294292","罗霜":"17623703561","雷荣增":"13685976301",
+  "傅兵安":"13860288990","陈春鑫":"13859569805","赖绍彬":"13507532500","官叶腾":"18850188454",
+  "王胜":"18250105270","张林健":"18959005106","邹林建":"15060372796","谢宇洋":"18459756672",
+  "卢治":"15889482340","张宇祥":"15260218913","张晓宇":"15159043860","朱友兄":"13859959941"
+};
+const DEFAULT_SCHEDULE = {
+  "2026-11-09":{leader:"杜开堂",support:"范建平",factory:"张永彪",kuzhang:"石凌斌"},
+  "2026-11-10":{leader:"刘奕丰",support:"赖志林",factory:"张永彪",kuzhang:"张林健"},
+  "2026-11-11":{leader:"刘奕丰",support:"李文龙",factory:"张永彪",kuzhang:"雷荣增"},
+  "2026-11-12":{leader:"刘奕丰",support:"张富财",factory:"张永彪",kuzhang:"官叶腾"},
+  "2026-11-13":{leader:"杜开堂",support:"石凌斌",factory:"张永彪",kuzhang:"谢宇洋"},
+  "2026-11-14":{leader:"杜开堂",support:"",factory:"郑义达",kuzhang:"卢治"},
+  "2026-11-15":{leader:"华鹏",support:"",factory:"郑义达",kuzhang:"傅兵安"},
+  "2026-11-16":{leader:"杜开堂",support:"张富财",factory:"罗永春",kuzhang:"赖绍彬"},
+  "2026-11-17":{leader:"刘奕丰",support:"赖志林",factory:"罗永春",kuzhang:"王胜"},
+  "2026-11-18":{leader:"刘奕丰",support:"李文龙",factory:"罗永春",kuzhang:"陈春鑫"},
+  "2026-11-19":{leader:"杜开堂",support:"范建平",factory:"罗永春",kuzhang:"邹林建"},
+  "2026-11-20":{leader:"杜开堂",support:"石凌斌",factory:"罗永春",kuzhang:"张林健"},
+  "2026-11-21":{leader:"华鹏",support:"",factory:"张永彪",kuzhang:"雷荣增"},
+  "2026-11-22":{leader:"华鹏",support:"",factory:"张永彪",kuzhang:"官叶腾"},
+  "2026-11-23":{leader:"",support:"范建平",factory:"张永彪",kuzhang:"谢宇洋"},
+  "2026-11-24":{leader:"",support:"赖志林",factory:"张永彪",kuzhang:"卢治"},
+  "2026-11-25":{leader:"",support:"李文龙",factory:"张永彪",kuzhang:"傅兵安"},
+  "2026-11-26":{leader:"",support:"张富财",factory:"张永彪",kuzhang:"赖绍彬"},
+  "2026-11-27":{leader:"",support:"石凌斌",factory:"张永彪",kuzhang:"王胜"},
+  "2026-11-28":{leader:"",support:"",factory:"罗永春",kuzhang:"陈春鑫"},
+  "2026-11-29":{leader:"",support:"",factory:"罗永春",kuzhang:"邹林建"},
+  "2026-11-30":{leader:"",support:"范建平",factory:"罗永春",kuzhang:"张林健"}
+};
+const DEFAULT_PLANT = [
+  {start:"2026-11-16",end:"2026-11-22",name:"张宇祥",phone:"15260218913"},
+  {start:"2026-11-23",end:"2026-11-29",name:"张晓宇",phone:"15159043860"},
+  {start:"2026-11-30",end:"2026-12-06",name:"朱友兄",phone:"13859959941"}
+];
+
+/* ========= 状态 ========= */
+let schedule = JSON.parse(JSON.stringify(DEFAULT_SCHEDULE));
+let plant    = JSON.parse(JSON.stringify(DEFAULT_PLANT));
+let phones   = Object.assign({}, PHONES);
+let isAdmin  = false;
+
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
 
-let schedule = (function(){
-  try { const s = lsGet("tianfu_schedule"); if (s) return JSON.parse(s); } catch(e){}
-  return JSON.parse(JSON.stringify(ORIGINAL));
-})();
-
-let plant = (function(){
-  try { const s = lsGet("tianfu_plant"); if (s) return JSON.parse(s); } catch(e){}
-  return JSON.parse(JSON.stringify(ORIGINAL_PLANT));
-})();
-
-function loadPhones() {
-  try { const s = lsGet("tianfu_phones"); if (s) Object.assign(PHONES, JSON.parse(s)); } catch(e){}
+/* ========= SHA256 ========= */
+async function sha256(str) {
+  const buf = new TextEncoder().encode(str);
+  const h = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2,"0")).join("");
 }
 
-/* 查找某日期所在那一周的厂务部值班 */
-function findPlantOn(dateKey) {
-  const sorted = plant.slice().sort((a,b) => (a.start||"").localeCompare(b.start||""));
-  for (const row of sorted) {
-    if (row.start && row.end && dateKey >= row.start && dateKey <= row.end) return row;
+/* ========= 管理员登录 ========= */
+// 默认密码 tiangfu2026 的真实 hash 在运行时计算一次，存入 ADMIN_PASS_HASHES
+(async function initAdminHash() {
+  const realHash = await sha256("tiangfu2026");
+  ADMIN_PASS_HASHES[0] = realHash;
+  lsSet("tianfu_admin_hash", realHash); // 存一下方便识别
+})();
+
+async function adminLogin() {
+  const p = document.getElementById("adminPwd").value;
+  if (!p) { showToast("请输入密码", true); return; }
+  const h = await sha256(p);
+  // 运行时 hash 列表
+  const valid = await getValidHashes();
+  if (valid.includes(h)) {
+    isAdmin = true;
+    lsSet("tianfu_admin", "1");
+    document.getElementById("adminLoginArea").style.display = "none";
+    document.getElementById("adminArea").style.display = "flex";
+    document.getElementById("tab-edit").classList.remove("locked");
+    document.getElementById("tab-plant").classList.remove("locked");
+    showToast("管理员登录成功 ✓");
+  } else {
+    showToast("密码错误", true);
   }
-  return null;
+}
+function adminLogout() {
+  isAdmin = false;
+  lsSet("tianfu_admin", "");
+  document.getElementById("adminLoginArea").style.display = "flex";
+  document.getElementById("adminArea").style.display = "none";
+  document.getElementById("tab-edit").classList.add("locked");
+  document.getElementById("tab-plant").classList.add("locked");
+  if (["edit","plant"].includes(_currentTab)) switchTab("gen");
+}
+async function getValidHashes() {
+  // 用默认密码 + 云端 data.json 里配置的 extra_hashes（如果有）
+  const list = [...ADMIN_PASS_HASHES];
+  if (window.__cloudExtraHashes) list.push(...window.__cloudExtraHashes);
+  return list;
 }
 
-/* ====================== 工具 ====================== */
-const weekdayCN = ["周日","周一","周二","周三","周四","周五","周六"];
-function pad(n) { return String(n).padStart(2,"0"); }
-function key(d) { return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()); }
-function todayKey() { return key(new Date()); }
-function escapeAttr(s) { return String(s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-
-function showToast(msg, isErr) {
-  const t = document.getElementById("toast");
-  t.textContent = msg;
-  t.className = "toast" + (isErr ? " error" : "") + " show";
-  setTimeout(() => t.className = "toast" + (isErr ? " error" : ""), 2200);
+/* ========= Tab ========= */
+let _currentTab = "gen";
+function tryGotoEdit() {
+  if (!isAdmin) { showToast("请先管理员登录", true); return; }
+  switchTab(event.currentTarget.id.replace("tab-",""));
 }
-
-/* ====================== Tab 切换 ====================== */
 function switchTab(name) {
+  if (["edit","plant"].includes(name) && !isAdmin) { showToast("请先管理员登录", true); return; }
+  _currentTab = name;
   for (const n of ["gen","edit","plant"]) {
     document.getElementById("tab-" + n).classList.toggle("active", name === n);
     document.getElementById("panel-" + n).style.display = name === n ? "block" : "none";
@@ -345,254 +405,21 @@ function switchTab(name) {
   if (name === "plant") renderPlant();
 }
 
-/* ====================== 干部排班：渲染 & 保存 ====================== */
-function renderTable() {
-  const root = document.getElementById("scheduleTable");
-  const dates = Object.keys(schedule).sort();
-  const roles = [
-    { k: "leader",  n: "带班领导", cls: "leader-col" },
-    { k: "support", n: "支撑干部" },
-    { k: "factory", n: "生产厂长" },
-    { k: "kuzhang", n: "值班课长" }
-  ];
-
-  let html = '<div class="table-scroll"><table class="schedule"><thead><tr>';
-  html += '<th class="date-col">日期</th>';
-  roles.forEach(r => html += '<th class="' + (r.cls||"") + '">' + r.n + '</th>');
-  html += '</tr></thead><tbody>';
-
-  dates.forEach(k => {
-    const d = new Date(k + "T00:00:00");
-    const isToday = k === todayKey();
-    const wk = d.getDay();
-    const isWeekend = wk === 0 || wk === 6;
-
-    html += '<tr' + (isToday ? ' class="today-row"' : '') + '>';
-    html += '<td class="date-col">'
-          + '<span class="d">' + (d.getMonth()+1) + '/' + d.getDate() + '</span>'
-          + '<span class="w' + (isWeekend ? ' weekend' : '') + '">' + weekdayCN[wk] + '</span>'
-          + '</td>';
-    roles.forEach(r => {
-      const val = (schedule[k] && schedule[k][r.k]) || "";
-      html += '<td class="' + (r.cls||"") + '">'
-            + '<input type="text" value="' + escapeAttr(val) + '" data-col="' + k + '" data-row="' + r.k + '">'
-            + '</td>';
-    });
-    html += '</tr>';
-  });
-
-  html += '</tbody></table></div>';
-  root.innerHTML = html;
-
-  root.querySelectorAll("input").forEach(inp => {
-    inp.addEventListener("input", function() {
-      const col = this.dataset.col, row = this.dataset.row;
-      if (!schedule[col]) schedule[col] = {};
-      schedule[col][row] = this.value.trim();
-    });
-  });
-}
-
-function saveSchedule() {
-  const ok = lsSet("tianfu_schedule", JSON.stringify(schedule));
-  showToast(ok ? "干部排班已保存 ✓" : "已修改（浏览器禁用本地保存）", !ok);
-  renderTable();
-  renderGen();
-}
-function resetSchedule() {
-  if (!confirm("确定恢复为原始干部排班数据？未保存的修改会丢失。")) return;
-  schedule = JSON.parse(JSON.stringify(ORIGINAL));
-  saveSchedule();
-}
-
-/* ====================== 厂务部：渲染 & 保存 ====================== */
-function renderPlant() {
-  const root = document.getElementById("plantTable");
-
-  let html = '<div class="table-scroll"><table class="schedule plant-schedule"><thead><tr>';
-  html += '<th class="date-range-col">起止日期</th>';
-  html += '<th class="name-col">值班人员</th>';
-  html += '<th class="phone-col">电话</th>';
-  html += '<th class="op-col">操作</th>';
-  html += '</tr></thead><tbody>';
-
-  plant.forEach((row, idx) => {
-    html += '<tr data-idx="' + idx + '">';
-    html += '<td class="date-range-col">'
-          + '<div class="date-range-wrap">'
-          + '<input type="date" value="' + escapeAttr(row.start) + '" data-idx="' + idx + '" data-f="start">'
-          + '<span class="sep">—</span>'
-          + '<input type="date" value="' + escapeAttr(row.end) + '" data-idx="' + idx + '" data-f="end">'
-          + '</div>'
-          + '</td>';
-    html += '<td class="name-col"><input type="text" value="' + escapeAttr(row.name) + '" data-idx="' + idx + '" data-f="name" placeholder="姓名"></td>';
-    html += '<td class="phone-col"><input type="text" value="' + escapeAttr(row.phone) + '" data-idx="' + idx + '" data-f="phone" placeholder="电话"></td>';
-    html += '<td class="op-col"><button class="btn-danger btn-sm" onclick="removePlantRow(' + idx + ')">🗑</button></td>';
-    html += '</tr>';
-  });
-
-  html += '</tbody></table></div>';
-  root.innerHTML = html;
-
-  root.querySelectorAll("input").forEach(inp => {
-    inp.addEventListener("input", function() {
-      const idx = +this.dataset.idx, f = this.dataset.f;
-      if (!plant[idx]) plant[idx] = { start: "", end: "", name: "", phone: "" };
-      plant[idx][f] = this.value.trim();
-    });
-  });
-}
-
-function savePlant() {
-  // 校验日期
-  let bad = false;
-  for (const r of plant) {
-    if (!r.start || !r.end) { bad = true; break; }
-    if (r.start > r.end) { bad = true; break; }
-  }
-  if (bad) { showToast("日期有问题，请检查起止日期", true); return; }
-
-  const ok = lsSet("tianfu_plant", JSON.stringify(plant));
-  showToast(ok ? "厂务部排班已保存 ✓" : "已修改（浏览器禁用本地保存）", !ok);
-  renderPlant();
-  renderGen();
-}
-function resetPlant() {
-  if (!confirm("确定恢复为原始厂务部排班数据？")) return;
-  plant = JSON.parse(JSON.stringify(ORIGINAL_PLANT));
-  savePlant();
-}
-function addPlantRow() {
-  // 自动生成下一周：从最后一行的 end +1 天开始
-  let start, end;
-  if (plant.length > 0) {
-    const last = plant[plant.length - 1];
-    const sd = new Date(last.start + "T00:00:00");
-    const ed = new Date(last.end + "T00:00:00");
-    ed.setDate(ed.getDate() + 1);
-    sd.setDate(sd.getDate() + 7);
-    start = key(ed);
-    const endDate = new Date(ed);
-    endDate.setDate(endDate.getDate() + 6);
-    end = key(endDate);
-  } else {
-    const d = new Date();
-    start = key(d);
-    const d2 = new Date(d);
-    d2.setDate(d2.getDate() + 6);
-    end = key(d2);
-  }
-  plant.push({ start, end, name: "", phone: "" });
-  renderPlant();
-}
-function removePlantRow(idx) {
-  if (!confirm("确定删除这一周的排班？")) return;
-  plant.splice(idx, 1);
-  renderPlant();
-}
-
-/* ====================== 通知文字生成 ====================== */
-function buildText(date) {
-  const k = key(date);
-  const data = schedule[k];
-  const dateStr = date.getFullYear() + "年" + (date.getMonth()+1) + "月" + date.getDate() + "日(" + weekdayCN[date.getDay()] + ")";
-
-  let t = "福建天甫电子材料有限公司\n";
-  t += "公司全员遇有紧急情况，必须在第一时间向值班领导汇报。\n\n";
-  t += "日期：" + dateStr + "\n\n";
-
-  if (!data) {
-    t += "（排班表中暂无该日期的值班安排）";
-  } else {
-    const roleList = [
-      { k: "leader",  n: "带班领导" },
-      { k: "support", n: "支撑干部" },
-      { k: "factory", n: "生产厂长" },
-      { k: "kuzhang", n: "值班课长" }
-    ];
-    roleList.forEach((r, i) => {
-      const name = (data[r.k] || "").trim();
-      const phone = PHONES[name] || "";
-      if (name) {
-        t += r.n + "：" + name + "\n";
-        t += "电话：" + phone + "\n";
-        if (i < roleList.length - 1) t += "\n";
-      } else {
-        t += r.n + "：（暂无排班）\n\n";
-      }
-    });
-  }
-
-  // 追加厂务部值班
-  const pl = findPlantOn(k);
-  t += "\n";
-  if (pl && pl.name) {
-    t += "厂务部值班：" + pl.name + "\n";
-    if (pl.phone) t += "电话：" + pl.phone + "\n";
-  } else {
-    t += "厂务部值班：（暂无排班）\n";
-  }
-
-  return t.trim() + "\n";
-}
-
-function renderGen() {
-  const d = currentDate();
-  document.getElementById("datePicker").value = key(d);
-  document.getElementById("output").value = buildText(d);
-}
-
-let _currentDate = null;
-function currentDate() { return _currentDate ? _currentDate : new Date(); }
-function goToday() { _currentDate = null; renderGen(); }
-function shiftDay(delta) {
-  const d = new Date(currentDate());
-  d.setDate(d.getDate() + delta);
-  _currentDate = d;
-  renderGen();
-}
-
-document.getElementById("datePicker").addEventListener("change", function(e) {
-  _currentDate = new Date(e.target.value + "T00:00:00");
-  renderGen();
-});
-
-/* ====================== 复制 ====================== */
-function copyText() {
-  const ta = document.getElementById("output");
-  ta.select();
-  ta.setSelectionRange(0, 99999);
-  const ok = document.execCommand("copy");
-  if (ok) { showToast("已复制 ✓ 去群里粘贴吧"); return; }
-  navigator.clipboard.writeText(ta.value).then(
-    () => showToast("已复制 ✓ 去群里粘贴吧"),
-    () => showToast("复制失败，请手动选择", true)
-  );
-}
-
-/* ====================== Word 导入（复用原有逻辑） ====================== */
+/* ========= Word 导入 ========= */
 async function importDocx(e) {
   const f = e.target.files[0];
   if (!f) return;
   e.target.value = "";
-
   const year = parseInt(document.getElementById("importYear").value, 10) || new Date().getFullYear();
   setImportMsg("正在读取「" + f.name + "」…", "#6b7385");
-
   try {
     const buf = await f.arrayBuffer();
     const xml = await unzipEntry(buf, "word/document.xml");
     const res = parseScheduleXml(xml, year);
     if (res.dates === 0) throw new Error("没找到日期行");
-
-    lsSet("tianfu_schedule", JSON.stringify(schedule));
-    lsSet("tianfu_phones", JSON.stringify(PHONES));
-
-    renderTable();
-    renderGen();
-
+    renderTable(); renderGen();
     setImportMsg(
-      "导入成功 ✓ 共识别 <b>" + res.dates + "</b> 个日期、" + res.people + " 条值班、" + res.phones + " 个电话",
+      "导入成功 ✓ 识别 <b>" + res.dates + "</b> 个日期、" + res.people + " 条值班、" + res.phones + " 个电话",
       "#16a34a"
     );
     showToast("Word 排班表导入成功 ✓");
@@ -603,11 +430,9 @@ async function importDocx(e) {
 }
 function setImportMsg(html, color) {
   const el = document.getElementById("importMsg");
-  if (!el) return;
-  el.innerHTML = html;
+  if (!el) return; el.innerHTML = html;
   el.style.color = color || "#6b7385";
 }
-
 async function unzipEntry(buf, target) {
   const dv = new DataView(buf);
   const u8 = new Uint8Array(buf);
@@ -625,7 +450,6 @@ async function unzipEntry(buf, target) {
     const compSize  = dv.getUint32(p + 20, true);
     const nameLen   = dv.getUint16(p + 28, true);
     const extraLen  = dv.getUint16(p + 30, true);
-    const cmtLen    = dv.getUint16(p + 32, true);
     const localOff  = dv.getUint32(p + 42, true);
     const name      = decoder.decode(u8.subarray(p + 46, p + 46 + nameLen));
     if (name === target) {
@@ -640,11 +464,10 @@ async function unzipEntry(buf, target) {
       }
       throw new Error("不支持的压缩格式");
     }
-    p += 46 + nameLen + extraLen + cmtLen;
+    p += 46 + nameLen + extraLen + dv.getUint16(p + 32, true);
   }
   throw new Error("文档里找不到正文内容");
 }
-
 function parseScheduleXml(xmlText, year) {
   const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
   const doc = new DOMParser().parseFromString(xmlText, "application/xml");
@@ -682,8 +505,7 @@ function parseScheduleXml(xmlText, year) {
       }
       if (!roleKey || !dates.length) continue;
       for (let ci = 1; ci < cells.length; ci++) {
-        const dk = dates[ci];
-        const name = cells[ci];
+        const dk = dates[ci], name = cells[ci];
         if (!dk || !name) continue;
         if (!schedule[dk]) schedule[dk] = {};
         schedule[dk][roleKey] = name;
@@ -693,21 +515,396 @@ function parseScheduleXml(xmlText, year) {
   }
   // 提取电话
   const ts = doc.getElementsByTagNameNS(W, "t");
-  let all = "";
-  for (let i = 0; i < ts.length; i++) all += ts[i].textContent;
+  let all = ""; for (let i = 0; i < ts.length; i++) all += ts[i].textContent;
   const re = /([\u4e00-\u9fa5]{2,7})\s*(1[3-9]\d{9})/g;
   let m, phoneCount = 0;
   while ((m = re.exec(all)) !== null) {
     const before = all.charAt(m.index - 1);
     if (before && /[\u4e00-\u9fa5]/.test(before)) continue;
-    if (PHONES[m[1]] !== m[2]) { PHONES[m[1]] = m[2]; phoneCount++; }
+    if (phones[m[1]] !== m[2]) { phones[m[1]] = m[2]; phoneCount++; }
   }
   return { dates: dateCount, people: peopleCount, phones: phoneCount };
 }
 
-/* ====================== 启动 ====================== */
-loadPhones();
-renderGen();
+/* ========= 加载云端 ========= */
+async function loadCloud() {
+  const bar = document.getElementById("cloudStatus");
+  try {
+    const resp = await fetch(CLOUD_ORIGIN + "?v=" + Date.now(), { cache: "no-cache" });
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const data = await resp.json();
+    if (data.schedule && Object.keys(data.schedule).length) schedule = data.schedule;
+    if (data.plant && data.plant.length) plant = data.plant;
+    if (data.phones && Object.keys(data.phones).length) phones = Object.assign({}, PHONES, data.phones);
+    if (data.admin_hashes && data.admin_hashes.length) window.__cloudExtraHashes = data.admin_hashes;
+    bar.innerHTML = "☁️ 云端数据已加载 · 更新于 " + (data.updated_at || "未知");
+    bar.classList.add("ok");
+    renderGen();
+  } catch (e) {
+    bar.innerHTML = "⚠️ 云端不可用，使用默认数据";
+    bar.classList.add("off");
+    renderGen();
+  }
+}
+
+/* ========= 干部排班渲染 ========= */
+const weekdayCN = ["周日","周一","周二","周三","周四","周五","周六"];
+function pad(n) { return String(n).padStart(2,"0"); }
+function key(d) { return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()); }
+function todayKey() { return key(new Date()); }
+function escapeAttr(s) { return String(s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function showToast(msg, isErr) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast" + (isErr ? " error" : "") + " show";
+  setTimeout(() => t.className = "toast" + (isErr ? " error" : ""), 2200);
+}
+
+function renderTable() {
+  const root = document.getElementById("scheduleTable");
+  const dates = Object.keys(schedule).sort();
+  const roles = [
+    { k: "leader",  n: "带班领导", cls: "leader-col" },
+    { k: "support", n: "支撑干部" },
+    { k: "factory", n: "生产厂长" },
+    { k: "kuzhang", n: "值班课长" }
+  ];
+  let html = '<div class="table-scroll"><table class="schedule"><thead><tr>';
+  html += '<th class="date-col">日期</th>';
+  roles.forEach(r => html += '<th class="' + (r.cls||"") + '">' + r.n + '</th>');
+  html += '</tr></thead><tbody>';
+  dates.forEach(k => {
+    const d = new Date(k + "T00:00:00");
+    const isToday = k === todayKey();
+    const wk = d.getDay();
+    const isWeekend = wk === 0 || wk === 6;
+    html += '<tr' + (isToday ? ' class="today-row"' : '') + '>';
+    html += '<td class="date-col">'
+          + '<span class="d">' + (d.getMonth()+1) + '/' + d.getDate() + '</span>'
+          + '<span class="w' + (isWeekend ? ' weekend' : '') + '">' + weekdayCN[wk] + '</span></td>';
+    roles.forEach(r => {
+      const val = (schedule[k] && schedule[k][r.k]) || "";
+      html += '<td class="' + (r.cls||"") + '">'
+            + '<input type="text" value="' + escapeAttr(val) + '" data-col="' + k + '" data-row="' + r.k + '"></td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  root.innerHTML = html;
+  root.querySelectorAll("input").forEach(inp => {
+    inp.addEventListener("input", function() {
+      const col = this.dataset.col, row = this.dataset.row;
+      if (!schedule[col]) schedule[col] = {};
+      schedule[col][row] = this.value.trim();
+    });
+  });
+}
+
+function saveSchedule() {
+  lsSet("tianfu_schedule", JSON.stringify(schedule));
+  showToast("干部排班已保存（本机）✓ 记得点导出同步云端");
+  renderTable(); renderGen();
+}
+function resetSchedule() {
+  if (!confirm("确定恢复为原始数据？未保存的修改会丢失。")) return;
+  schedule = JSON.parse(JSON.stringify(DEFAULT_SCHEDULE));
+  saveSchedule();
+}
+
+/* ========= 厂务部 ========= */
+function renderPlant() {
+  const root = document.getElementById("plantTable");
+  let html = '<div class="table-scroll"><table class="schedule plant-schedule"><thead><tr>';
+  html += '<th class="date-range-col">起止日期</th>';
+  html += '<th class="name-col">值班人员</th>';
+  html += '<th class="phone-col">电话</th>';
+  html += '<th class="op-col">操作</th>';
+  html += '</tr></thead><tbody>';
+  plant.forEach((row, idx) => {
+    html += '<tr>';
+    html += '<td class="date-range-col"><div class="date-range-wrap">'
+          + '<input type="date" value="' + escapeAttr(row.start) + '" data-idx="' + idx + '" data-f="start">'
+          + '<span class="sep">—</span>'
+          + '<input type="date" value="' + escapeAttr(row.end) + '" data-idx="' + idx + '" data-f="end">'
+          + '</div></td>';
+    html += '<td class="name-col"><input type="text" value="' + escapeAttr(row.name) + '" data-idx="' + idx + '" data-f="name" placeholder="姓名"></td>';
+    html += '<td class="phone-col"><input type="text" value="' + escapeAttr(row.phone) + '" data-idx="' + idx + '" data-f="phone" placeholder="电话"></td>';
+    html += '<td class="op-col"><button class="btn-danger btn-sm" onclick="removePlantRow(' + idx + ')">🗑</button></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  root.innerHTML = html;
+  root.querySelectorAll("input").forEach(inp => {
+    inp.addEventListener("input", function() {
+      const idx = +this.dataset.idx, f = this.dataset.f;
+      if (!plant[idx]) plant[idx] = { start: "", end: "", name: "", phone: "" };
+      plant[idx][f] = this.value.trim();
+    });
+  });
+}
+
+function savePlant() {
+  let bad = false;
+  for (const r of plant) { if (!r.start || !r.end || r.start > r.end) { bad = true; break; } }
+  if (bad) { showToast("日期有问题，请检查", true); return; }
+  lsSet("tianfu_plant", JSON.stringify(plant));
+  showToast("厂务部排班已保存（本机）✓ 记得点导出同步云端");
+  renderPlant(); renderGen();
+}
+function resetPlant() {
+  if (!confirm("确定恢复为原始数据？")) return;
+  plant = JSON.parse(JSON.stringify(DEFAULT_PLANT));
+  savePlant();
+}
+function addPlantRow() {
+  let start, end;
+  if (plant.length > 0) {
+    const last = plant[plant.length - 1];
+    const ed = new Date(last.end + "T00:00:00");
+    const sd = new Date(last.start + "T00:00:00");
+    sd.setDate(sd.getDate() + 7);
+    ed.setDate(ed.getDate() + 7);
+    start = key(ed); end = key(sd);
+    // 修正：start 应该是上周 end+1 开始
+    const lastEnd = new Date(last.end + "T00:00:00");
+    lastEnd.setDate(lastEnd.getDate() + 1);
+    start = key(lastEnd);
+    const e2 = new Date(lastEnd); e2.setDate(e2.getDate() + 6);
+    end = key(e2);
+  } else {
+    const d = new Date(); start = key(d);
+    const d2 = new Date(d); d2.setDate(d2.getDate() + 6); end = key(d2);
+  }
+  plant.push({ start, end, name: "", phone: "" });
+  renderPlant();
+}
+function removePlantRow(idx) {
+  if (!confirm("确定删除这一周？")) return;
+  plant.splice(idx, 1); renderPlant();
+}
+
+/* ========= 厂务部查找 ========= */
+function findPlantOn(dateKey) {
+  const sorted = plant.slice().sort((a,b) => (a.start||"").localeCompare(b.start||""));
+  for (const row of sorted) {
+    if (row.start && row.end && dateKey >= row.start && dateKey <= row.end) return row;
+  }
+  return null;
+}
+
+/* ========= 通知文字生成 ========= */
+function buildText(date) {
+  const k = key(date);
+  const data = schedule[k];
+  const dateStr = date.getFullYear() + "年" + (date.getMonth()+1) + "月" + date.getDate() + "日(" + weekdayCN[date.getDay()] + ")";
+  let t = "福建天甫电子材料有限公司\n";
+  t += "公司全员遇有紧急情况，必须在第一时间向值班领导汇报。\n\n";
+  t += "日期：" + dateStr + "\n\n";
+  if (!data) {
+    t += "（排班表中暂无该日期的值班安排）";
+  } else {
+    const roleList = [
+      { k: "leader",  n: "带班领导" },
+      { k: "support", n: "支撑干部" },
+      { k: "factory", n: "生产厂长" },
+      { k: "kuzhang", n: "值班课长" }
+    ];
+    roleList.forEach((r, i) => {
+      const name = (data[r.k] || "").trim();
+      const phone = phones[name] || "";
+      if (name) {
+        t += r.n + "：" + name + "\n";
+        t += "电话：" + phone + "\n";
+        if (i < roleList.length - 1) t += "\n";
+      } else {
+        t += r.n + "：（暂无排班）\n\n";
+      }
+    });
+  }
+  const pl = findPlantOn(k);
+  t += "\n";
+  if (pl && pl.name) {
+    t += "厂务部值班：" + pl.name + "\n";
+    if (pl.phone) t += "电话：" + pl.phone + "\n";
+  } else {
+    t += "厂务部值班：（暂无排班）\n";
+  }
+  return t.trim() + "\n";
+}
+
+function renderGen() {
+  const d = currentDate();
+  document.getElementById("datePicker").value = key(d);
+  document.getElementById("output").value = buildText(d);
+}
+
+let _currentDate = null;
+function currentDate() { return _currentDate ? _currentDate : new Date(); }
+function goToday() { _currentDate = null; renderGen(); }
+function shiftDay(delta) {
+  const d = new Date(currentDate());
+  d.setDate(d.getDate() + delta);
+  _currentDate = d;
+  renderGen();
+}
+document.getElementById("datePicker").addEventListener("change", function(e) {
+  _currentDate = new Date(e.target.value + "T00:00:00");
+  renderGen();
+});
+
+/* ========= 复制 ========= */
+function copyText() {
+  const ta = document.getElementById("output");
+  ta.select(); ta.setSelectionRange(0, 99999);
+  if (document.execCommand("copy")) { showToast("已复制 ✓"); return; }
+  navigator.clipboard.writeText(ta.value).then(
+    () => showToast("已复制 ✓"),
+    () => showToast("复制失败，请手动选", true)
+  );
+}
+
+/* ========= 导出 JSON ========= */
+function buildExportData() {
+  // 从干部排班里提取所有电话，合并到 phones
+  const mergedPhones = Object.assign({}, PHONES);
+  Object.values(schedule).forEach(s => {
+    ["leader","support","factory","kuzhang"].forEach(k => {
+      const n = (s[k]||"").trim();
+      if (n && !mergedPhones[n]) mergedPhones[n] = "";
+    });
+  });
+  plant.forEach(r => { if (r.name) mergedPhones[r.name] = r.phone || mergedPhones[r.name] || ""; });
+  return {
+    schema: "v2",
+    updated_at: new Date().toISOString().slice(0,10),
+    schedule: schedule,
+    plant: plant,
+    phones: mergedPhones,
+    admin_hashes: window.__cloudExtraHashes || []
+  };
+}
+
+function exportData() {
+  const data = buildExportData();
+  const json = JSON.stringify(data, null, 2);
+  const modal = document.getElementById("exportModal");
+  document.getElementById("exportText").value = json;
+  modal.style.display = "flex";
+}
+function copyExport() {
+  const ta = document.getElementById("exportText");
+  ta.select(); ta.setSelectionRange(0, 99999);
+  if (document.execCommand("copy")) { showToast("JSON 已复制 ✓ 去 GitHub 粘贴吧"); document.getElementById("exportModal").style.display = "none"; return; }
+  navigator.clipboard.writeText(ta.value).then(
+    () => { showToast("JSON 已复制 ✓ 去 GitHub 粘贴吧"); document.getElementById("exportModal").style.display = "none"; },
+    () => showToast("复制失败，请手动选", true)
+  );
+}
+
+/* ========= GitHub 一键推送 ========= */
+const GH_OWNER = "wudu666666-pixel";
+const GH_REPO  = "duty-roster";
+const GH_PATH  = "data.json";
+
+function getGhToken() { return lsGet("tianfu_gh_token"); }
+function setGhToken(t) { lsSet("tianfu_gh_token", t); }
+function clearGhToken() { lsSet("tianfu_gh_token", ""); }
+
+async function pushCloud() {
+  if (!isAdmin) { showToast("请先管理员登录", true); return; }
+  let token = getGhToken();
+  if (!token) {
+    // 首次：弹窗让用户填
+    const modal = document.createElement("div");
+    modal.id = "tokenModal";
+    modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;";
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:12px;padding:22px;width:90%;max-width:460px;">
+        <h3 style="margin:0 0 8px;color:#1e5bbf;">首次使用：请填写 GitHub Token</h3>
+        <p style="font-size:13px;color:#6b7385;line-height:1.7;margin-bottom:10px;">
+          1. 打开 <a href="https://github.com/settings/tokens/new?type=classic" target="_blank" rel="noopener">https://github.com/settings/tokens/new?type=classic</a><br>
+          2. Note 填 <code>duty-tool</code>，Expiration 选 <code>90 days</code><br>
+          3. 往下找到 <code>repo</code> 组，勾上整组<br>
+          4. 点最下方绿色按钮 Generate token，复制 <code>ghp_</code> 开头的字符串<br>
+          5. 粘贴到下面输入框（只存您这台电脑本机，不上传任何地方）
+        </p>
+        <input id="tokenInput" type="password" placeholder="ghp_xxxx..." style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;font-family:inherit;">
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+          <button class="btn-ghost" onclick="document.getElementById('tokenModal').remove()">取消</button>
+          <button class="btn-primary" onclick="doPushWithToken()">保存并推送</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    setTimeout(() => document.getElementById("tokenInput").focus(), 100);
+    return;
+  }
+  await doPush(token);
+}
+async function doPushWithToken() {
+  const t = document.getElementById("tokenInput").value.trim();
+  document.getElementById("tokenModal").remove();
+  if (!t) { showToast("token 不能为空", true); return; }
+  setGhToken(t);
+  showToast("token 已保存 ✓ 正在推送…");
+  await doPush(t);
+}
+async function doPush(token) {
+  const data = buildExportData();
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+  const url = "https://api.github.com/repos/" + GH_OWNER + "/" + GH_REPO + "/contents/" + GH_PATH;
+  const headers = {
+    "Authorization": "Bearer " + token,
+    "Accept": "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+    "User-Agent": "duty-tool"
+  };
+  try {
+    // 先 GET 拿 sha
+    let sha = null;
+    try {
+      const gresp = await fetch(url, { headers });
+      if (gresp.ok) { const info = await gresp.json(); sha = info.sha; }
+    } catch (e) {}
+    const body = {
+      message: "更新 data.json " + data.updated_at,
+      content: content,
+      branch: "main"
+    };
+    if (sha) body.sha = sha;
+    const resp = await fetch(url, {
+      method: "PUT",
+      headers: Object.assign({"Content-Type": "application/json"}, headers),
+      body: JSON.stringify(body)
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      if (resp.status === 401 || resp.status === 403) {
+        clearGhToken();
+        throw new Error("token 无效，请重新设置（已清除旧 token）");
+      }
+      throw new Error("HTTP " + resp.status + " " + (err.message || "推送失败"));
+    }
+    await resp.json();
+    showToast("☁️ 推送成功 ✓ 同事刷新页面即看到最新");
+  } catch (err) {
+    showToast("推送失败：" + err.message, true);
+  }
+}
+
+/* ========= 启动 ========= */
+(async function start() {
+  // 恢复管理员登录态
+  if (lsGet("tianfu_admin") === "1") {
+    isAdmin = true;
+    document.getElementById("adminLoginArea").style.display = "none";
+    document.getElementById("adminArea").style.display = "flex";
+    document.getElementById("tab-edit").classList.remove("locked");
+    document.getElementById("tab-plant").classList.remove("locked");
+  }
+  // 云端加载
+  await loadCloud();
+})();
 </script>
 </body>
 </html>
